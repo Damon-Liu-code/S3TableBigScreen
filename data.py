@@ -1,163 +1,115 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# @Time : 2020/8/26 14:48
+# @Author : way
+# @Site : 
+# @Describe:
+
 import json
-from pyspark.sql import SparkSession
 
 class SourceDataDemo:
+
     def __init__(self):
-        # Initialize Spark session with S3 Tables configurations
-        self.spark = SparkSession.builder \
-            .appName("BigScreenData") \
-            .config("spark.jars.packages", 
-                    "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.6.1,"
-                    "software.amazon.s3tables:s3-tables-catalog-for-iceberg-runtime:0.1.3") \
-            .config("spark.sql.catalog.s3tablesbucket", "org.apache.iceberg.spark.SparkCatalog") \
-            .config("spark.sql.catalog.s3tablesbucket.catalog-impl", 
-                    "software.amazon.s3tables.iceberg.S3TablesCatalog") \
-            .config("spark.sql.extensions", 
-                    "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-            .getOrCreate()
-
-        # Load data from S3 Table
-        self.load_data_from_s3()
-
-    def load_data_from_s3(self):
-        try:
-            # Query map_data table
-            df = self.spark.sql("""
-                SELECT * FROM s3tablesbucket.testdb.map_data
-            """)
-            
-            # Convert to dictionary for easier processing
-            data_dict = {}
-            for row in df.collect():
-                chart_type = row['chart_type']
-                if chart_type not in data_dict:
-                    data_dict[chart_type] = []
-                
-                # Create data entry based on chart type
-                data_entry = {
-                    "name": row['name'],
-                    "value": float(row['value'])
-                }
-                
-                # Add optional fields if they exist
-                if row['value2'] is not None:
-                    data_entry["value2"] = float(row['value2'])
-                if row['color'] is not None:
-                    data_entry["color"] = row['color']
-                if row['radius_start'] is not None and row['radius_end'] is not None:
-                    data_entry["radius"] = [row['radius_start'], row['radius_end']]
-                if row['symbol_size'] is not None:
-                    data_entry["symbolSize"] = float(row['symbol_size'])
-                
-                data_dict[chart_type].append(data_entry)
-
-            # Set class attributes based on chart types
-            self.title = '大数据可视化展板通用模板'
-            
-            # Counter data
-            counter_data = df.filter(df.chart_type == 'counter').collect()
-            self.counter = {
-                'name': counter_data[0]['chart_title'] if counter_data else '2023年总收入情况',
-                'value': float(counter_data[0]['value']) if counter_data else 0
-            }
-            self.counter2 = {
-                'name': counter_data[1]['chart_title'] if len(counter_data) > 1 else '2023年总支出情况',
-                'value': float(counter_data[1]['value']) if len(counter_data) > 1 else 0
-            }
-
-            # Chart 1 data (Industry distribution)
-            echart1_rows = df.filter(df.chart_type == 'industry').collect()
-            self.echart1_data = {
-                'title': '行业分布',
-                'data': [{"name": row['name'], "value": float(row['value'])} for row in echart1_rows]
-            }
-
-            # Chart 2 data (Province distribution)
-            echart2_rows = df.filter(df.chart_type == 'province').collect()
-            self.echart2_data = {
-                'title': '省份分布',
-                'data': [{"name": row['name'], "value": float(row['value'])} for row in echart2_rows]
-            }
-
-            # Chart 3 data (Age, Occupation, Interest distribution)
-            self.echarts3_1_data = {
-                'title': '年龄分布',
-                'data': [{"name": row['name'], "value": float(row['value'])} 
-                        for row in df.filter(df.chart_type == 'age').collect()]
-            }
-            
-            self.echarts3_2_data = {
-                'title': '职业分布',
-                'data': [{"name": row['name'], "value": float(row['value'])} 
-                        for row in df.filter(df.chart_type == 'occupation').collect()]
-            }
-            
-            self.echarts3_3_data = {
-                'title': '兴趣分布',
-                'data': [{"name": row['name'], "value": float(row['value'])} 
-                        for row in df.filter(df.chart_type == 'interest').collect()]
-            }
-
-            # Chart 4 data (Time trend)
-            echart4_rows = df.filter(df.chart_type == 'time_trend').collect()
-            self.echart4_data = {
-                'title': '时间趋势',
-                'data': [],
-                'xAxis': []
-            }
-            
-            for row in echart4_rows:
-                if row['value_list']:
-                    values = json.loads(row['value_list'])
-                    self.echart4_data['data'].append({
-                        "name": row['name'],
-                        "value": values
-                    })
-                if row['x_axis']:
-                    self.echart4_data['xAxis'] = json.loads(row['x_axis'])
-
-            # Chart 5 data (Province TOP)
-            echart5_rows = df.filter(df.chart_type == 'province_top').collect()
-            self.echart5_data = {
-                'title': '省份TOP',
-                'data': [{"name": row['name'], "value": float(row['value'])} 
-                        for row in echart5_rows]
-            }
-
-            # Chart 6 data (First-tier cities)
-            echart6_rows = df.filter(df.chart_type == 'first_tier').collect()
-            self.echart6_data = {
-                'title': '一线城市情况',
-                'data': [{
-                    "name": row['name'],
-                    "value": float(row['value']),
-                    "value2": float(row['value2']) if row['value2'] else 0,
-                    "color": row['color'] if row['color'] else "01",
-                    "radius": [row['radius_start'] or '20%', row['radius_end'] or '30%']
-                } for row in echart6_rows]
-            }
-
-            # Map data
-            map_rows = df.filter(df.chart_type == 'map').collect()
-            self.map_1_data = {
-                'symbolSize': float(map_rows[0]['symbol_size']) if map_rows and map_rows[0]['symbol_size'] else 100,
-                'data': [{"name": row['name'], "value": float(row['value'])} 
-                        for row in map_rows]
-            }
-
-        except Exception as e:
-            print(f"Error loading data from S3 Table: {str(e)}")
-            # Set default values in case of error
-            self._set_default_values()
-
-    def _set_default_values(self):
-        # Set default values as in your original code
         self.title = '大数据可视化展板通用模板'
-        self.counter = {'name': '2023年总收入情况', 'value': 0}
-        self.counter2 = {'name': '2023年总支出情况', 'value': 0}
-        # ... (rest of your default values)
+        self.counter = {'name': '2018年总收入情况', 'value': 12581189}
+        self.counter2 = {'name': '2018年总支出情况', 'value': 3912410}
+        self.echart1_data = {
+            'title': '行业分布',
+            'data': [
+                {"name": "商超门店", "value": 47},
+                {"name": "教育培训", "value": 52},
+                {"name": "房地产", "value": 90},
+                {"name": "生活服务", "value": 84},
+                {"name": "汽车销售", "value": 99},
+                {"name": "旅游酒店", "value": 37},
+                {"name": "五金建材", "value": 2},
+            ]
+        }
+        self.echart2_data = {
+            'title': '省份分布',
+            'data': [
+                {"name": "浙江", "value": 47},
+                {"name": "上海", "value": 52},
+                {"name": "江苏", "value": 90},
+                {"name": "广东", "value": 84},
+                {"name": "北京", "value": 99},
+                {"name": "深圳", "value": 37},
+                {"name": "安徽", "value": 150},
+            ]
+        }
+        self.echarts3_1_data = {
+            'title': '年龄分布',
+            'data': [
+                {"name": "0岁以下", "value": 47},
+                {"name": "20-29岁", "value": 52},
+                {"name": "30-39岁", "value": 90},
+                {"name": "40-49岁", "value": 84},
+                {"name": "50岁以上", "value": 99},
+            ]
+        }
+        self.echarts3_2_data = {
+            'title': '职业分布',
+            'data': [
+                {"name": "电子商务", "value": 10},
+                {"name": "教育", "value": 20},
+                {"name": "IT/互联网", "value": 20},
+                {"name": "金融", "value": 30},
+                {"name": "学生", "value": 40},
+                {"name": "其他", "value": 50},
+            ]
+        }
+        self.echarts3_3_data = {
+            'title': '兴趣分布',
+            'data': [
+                {"name": "汽车", "value": 4},
+                {"name": "旅游", "value": 5},
+                {"name": "财经", "value": 9},
+                {"name": "教育", "value": 8},
+                {"name": "软件", "value": 9},
+                {"name": "其他", "value": 9},
+            ]
+        }
+        self.echart4_data = {
+            'title': '时间趋势',
+            'data': [
+                {"name": "安卓", "value": [3, 4, 3, 4, 3, 4, 3, 6, 2, 4, 2, 4, 3, 4, 3, 4, 3, 4, 3, 6, 2, 4, 4]},
+                {"name": "IOS", "value": [5, 3, 5, 6, 1, 5, 3, 5, 6, 4, 6, 4, 8, 3, 5, 6, 1, 5, 3, 7, 2, 5, 8]},
+            ],
+            'xAxis': ['01', '02', '03', '04', '05', '06', '07', '08', '09', '11', '12', '13', '14', '15', '16', '17',
+                      '18', '19', '20', '21', '22', '23', '24'],
+        }
+        self.echart5_data = {
+            'title': '省份TOP',
+            'data': [
+                {"name": "浙江", "value": 2},
+                {"name": "上海", "value": 3},
+                {"name": "江苏", "value": 3},
+                {"name": "广东", "value": 9},
+                {"name": "北京", "value": 15},
+                {"name": "深圳", "value": 18},
+                {"name": "安徽", "value": 20},
+                {"name": "四川", "value": 13},
+            ]
+        }
+        self.echart6_data = {
+            'title': '一线城市情况',
+            'data': [
+                {"name": "浙江", "value": 80, "value2": 20, "color": "01", "radius": ['59%', '70%']},
+                {"name": "上海", "value": 70, "value2": 30, "color": "02", "radius": ['49%', '60%']},
+                {"name": "广东", "value": 65, "value2": 35, "color": "03", "radius": ['39%', '50%']},
+                {"name": "北京", "value": 60, "value2": 40, "color": "04", "radius": ['29%', '40%']},
+                {"name": "深圳", "value": 50, "value2": 50, "color": "05", "radius": ['20%', '30%']},
+            ]
+        }
+        self.map_1_data = {
+            'symbolSize': 100,
+            'data': [
+                {'name': '海门', 'value': 239},
+                {'name': '鄂尔多斯', 'value': 231},
+                {'name': '招远', 'value': 203},
+            ]
+        }
 
-    # Keep your existing property methods
     @property
     def echart1(self):
         data = self.echart1_data
