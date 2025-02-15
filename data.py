@@ -7,11 +7,11 @@ class SourceDataDemo:
 
         # 从 Spark SQL 查询中读取数据
         try:
-            df = self.spark.sql("SELECT * FROM s3tablesbucket.testdb.map_data_0119")
+            df = self.spark.sql("SELECT * FROM s3tablesbucket.testdb.map_data")
             rows = df.collect()  # 将数据收集为一个列表
             data_list = [row.asDict() for row in rows]
         except Exception as e:
-            print(f"Error fetching data from map_data_0119: {e}")
+            print(f"Error fetching data from map_data: {e}")
             data_list = []
 
         # 数据分类和构建
