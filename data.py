@@ -15,7 +15,7 @@ class SourceDataDemo:
             data_list = []
 
         # 数据分类和构建
-        self.title = '大数据可视化展板通用模板'  # 如果标题固定，可以直接赋值
+        self.title = '2018年居民消费分析数字化大屏'  # 如果标题固定，可以直接赋值
         self.counter = {'name': '2018年总收入情况', 'value': 12581189}
         self.counter2 = {'name': '2018年总支出情况', 'value': 3912410}
 
